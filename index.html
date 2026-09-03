@@ -204,6 +204,65 @@
   }
   .save-btn:active{ opacity:.85; }
     .cloud-actions .btn{min-height:42px;}
+
+    /* تحسين أزرار المزامنة */
+    .cloud-actions{
+      display:grid !important;
+      grid-template-columns:1fr 1fr;
+      gap:10px !important;
+      margin-top:10px;
+    }
+    .cloud-actions .btn{
+      min-height:46px;
+      border:1px solid var(--line);
+      border-radius:11px;
+      padding:10px 12px;
+      font-family:inherit;
+      font-size:13px;
+      font-weight:600;
+      cursor:pointer;
+      transition:transform .12s ease, box-shadow .12s ease, opacity .12s ease, background .12s ease;
+      box-shadow:0 2px 5px rgba(27,42,65,.07);
+    }
+    .cloud-actions .btn:not(:disabled):active{
+      transform:translateY(1px);
+      box-shadow:0 1px 2px rgba(27,42,65,.06);
+    }
+    .cloud-actions .btn:not(:disabled):hover{
+      box-shadow:0 4px 10px rgba(27,42,65,.10);
+    }
+    .cloud-actions .btn:first-child{
+      background:var(--ink);
+      color:#fff;
+      border-color:var(--ink);
+    }
+    .cloud-actions .btn.secondary{
+      background:var(--paper);
+      color:var(--ink);
+    }
+    .cloud-actions .btn:disabled{
+      opacity:.42;
+      cursor:not-allowed;
+      box-shadow:none;
+    }
+    #driveSyncBtn:not(:disabled){
+      background:var(--brass);
+      color:#fff;
+      border-color:var(--brass);
+    }
+    #driveDisconnectBtn:not(:disabled){
+      color:var(--warn);
+      background:var(--warn-soft);
+      border-color:rgba(178,76,51,.35);
+    }
+    #driveRestoreBtn:not(:disabled){
+      color:var(--good);
+      background:var(--good-soft);
+      border-color:rgba(76,122,93,.30);
+    }
+    @media(max-width:420px){
+      .cloud-actions .btn{font-size:12px;padding:9px 7px;}
+    }
   #driveStatus{font-size:13px;}
   #driveStatus.good{color:var(--good);}
   #driveStatus.warn{color:var(--warn);}
@@ -1284,6 +1343,7 @@
       driveSetStatus('جاري الاتصال…');
       await driveGetToken(true);
       driveSetButtons(true);
+      connect.textContent='✓ حساب Google مرتبط';
       driveSetStatus('متصل بحساب Google','good');
       document.getElementById('driveHint').textContent='تم الربط. استخدم «مزامنة الآن» لرفع/جلب البيانات.';
       await driveSync(true);
@@ -1371,7 +1431,15 @@
       document.getElementById('driveAutoSync').checked=!!settings.cloudAutoSync;
       document.getElementById('driveLastSync').textContent=settings.cloudLastSync?new Date(settings.cloudLastSync).toLocaleString('ar-EG'):'—';
       if(settings.cloudFileId){
-        driveSetButtons(false); driveSetStatus('مرتبط سابقًا — اضغط مزامنة الآن');
+        // وجود معرف ملف محفوظ يعني أن الحساب/ملف Drive مرتبط سابقًا.
+        // يمكن طلب رمز الدخول عند الضغط على المزامنة، لذلك لا نعطل الأزرار هنا.
+        driveSetButtons(true);
+        driveSetStatus('مرتبط سابقًا — جاهز للمزامنة','good');
+        connect.textContent='✓ حساب Google مرتبط';
+      }else{
+        driveSetButtons(false);
+        driveSetStatus('غير متصل');
+        connect.textContent='🔗 ربط حساب Google';
       }
       driveStartAutoSync();
     };
