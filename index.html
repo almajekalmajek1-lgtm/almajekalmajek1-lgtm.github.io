@@ -274,6 +274,8 @@
     margin-top:8px;
     min-height:14px;
   }
+  .save-msg.warn{ color:var(--warn); }
+  .save-msg.info{ color:var(--ink-soft); }
 
   /* ---------- Log screen ---------- */
   .log-item{
@@ -466,8 +468,10 @@
   .chart-wrap{position:relative;width:100%;height:250px;}
   #dashChart{width:100%;height:250px;display:block;}
   .legend{display:flex;justify-content:center;gap:16px;font-size:11px;color:var(--ink-soft);margin-top:4px;}
-  .legend span:before{content:"";display:inline-block;width:9px;height:9px;border-radius:2px;background:var(--ink);margin-left:5px;}
+  .legend span:before{content:"";display:inline-block;width:9px;height:9px;border-radius:2px;background:var(--good);margin-left:5px;}
+  .legend .under-legend:before{background:var(--warn);}
   .legend .target:before{background:var(--brass);}
+  #dashCompare{ margin-top:10px; padding-top:10px; border-top:1px dashed var(--line); }
   .report-table{width:100%;border-collapse:collapse;font-size:11px;}
   .report-table th{color:var(--ink-soft);font-weight:600;padding:7px 4px;border-bottom:1px solid var(--line);}
   .report-table td{padding:8px 4px;border-bottom:1px dashed var(--line);text-align:center;}
@@ -488,6 +492,71 @@
     .card{padding:13px;}
   }
 
+  /* ---------- Design polish pass ---------- */
+  :focus-visible{
+    outline:2px solid var(--brass);
+    outline-offset:2px;
+    border-radius:6px;
+  }
+  button, .save-btn, .danger-btn, .ghost-btn, .quick-btn, .dash-action,
+  .cloud-actions .btn, .tab-btn, select, input, textarea{
+    transition:box-shadow .15s ease, border-color .15s ease, background-color .15s ease, transform .1s ease, opacity .15s ease;
+  }
+  select:focus, input:focus, textarea:focus{
+    border-color:var(--brass);
+    box-shadow:0 0 0 3px rgba(184,135,59,.15);
+    outline:none;
+  }
+  .card{ transition:box-shadow .15s ease; }
+  .save-btn:not(:disabled):active{ transform:scale(.98); }
+  .ghost-btn:active, .quick-btn:active, .dash-action:active, .danger-btn:active{ transform:scale(.97); }
+  .kpi{ border-inline-start:3px solid var(--line); }
+  .kpi.good{ border-inline-start-color:var(--good); }
+  .kpi.warn{ border-inline-start-color:var(--warn); }
+  nav.tabbar button{ transition:color .15s ease; }
+  nav.tabbar button .dot{ transition:background-color .15s ease, transform .15s ease; }
+  nav.tabbar button.active .dot{ transform:scale(1.4); }
+  header.topbar{
+    position:sticky; top:0; z-index:5;
+    background:var(--paper);
+    backdrop-filter:saturate(1.1);
+  }
+  ::selection{ background:var(--brass-soft); }
+  .badge{ border:1px solid transparent; }
+  .badge.work{ border-color:rgba(138,97,31,.18); }
+  .badge.off{ border-color:rgba(76,122,93,.22); }
+  .badge.absent{ border-color:rgba(178,76,51,.22); }
+  .save-msg:not(:empty), #saveSettingsMsg:not(:empty){
+    animation:fade .2s ease;
+  }
+
+  /* ---------- Mobile usability pass ---------- */
+  html, body{ overflow-x:hidden; }
+  button, .tab-btn, .quick-btn, .dash-action, .cloud-actions .btn, .date-nav button, .remove-period{
+    touch-action:manipulation;
+  }
+  .date-nav button{ width:44px; height:44px; font-size:18px; }
+  .period-row .remove-period{ min-width:40px; height:40px; }
+  nav.tabbar button{ min-height:50px; }
+  .quick-btn{ min-height:42px; }
+  .dash-action{ min-height:42px; }
+  @media(max-width:480px){
+    select, input[type=time], input[type=date], input[type=month], input[type=number], input[type=text], input.duration-input, textarea{
+      font-size:16px; /* يمنع تكبير الشاشة تلقائيًا في iOS عند التركيز على الحقل */
+    }
+  }
+  .settings-row{ flex-wrap:wrap; }
+  .settings-row .quick-btn, .settings-row .btn{ flex:0 0 auto; }
+  .period-input-wrap{ display:flex; flex-direction:column; flex:1; }
+  .period-error{ font-size:11px; color:var(--warn); margin-top:3px; min-height:13px; text-align:center; }
+  .period-input.invalid{
+    border-color:var(--warn) !important;
+    box-shadow:0 0 0 3px rgba(178,76,51,.15);
+  }
+  #statusSelect{ border-inline-start:4px solid var(--line); transition:border-color .15s ease; }
+  #statusSelect[data-status="عمل"]{ border-inline-start-color:var(--ink); }
+  #statusSelect[data-status="إجازة"]{ border-inline-start-color:var(--good); }
+  #statusSelect[data-status="غياب"]{ border-inline-start-color:var(--warn); }
 </style>
 </head>
 <body>
@@ -568,13 +637,23 @@
         <span class="status-pill" id="dashLeaveDays">إجازة: 0</span>
         <span class="status-pill" id="dashAbsentDays">غياب: 0</span>
         <span class="status-pill" id="dashMissingDays">ناقص: 0</span>
+        <span class="status-pill" id="dashPeriodsCount">الفترات: 0</span>
+      </div>
+      <div class="range-note" id="dashCompare">—</div>
+    </div>
+
+    <div class="card">
+      <h2>أفضل وأقل يوم</h2>
+      <div class="summary-grid">
+        <div class="mini-stat"><div class="v" id="dashBestDay">—</div><div class="l" id="dashBestDayLabel">أفضل يوم</div></div>
+        <div class="mini-stat"><div class="v" id="dashWorstDay">—</div><div class="l" id="dashWorstDayLabel">أقل يوم</div></div>
       </div>
     </div>
 
     <div class="card">
       <h2>الأداء اليومي</h2>
       <div class="chart-wrap"><canvas id="dashChart"></canvas></div>
-      <div class="legend"><span>الساعات الفعلية</span><span class="target">المستهدف</span></div>
+      <div class="legend"><span>وصل للمستهدف</span><span class="under-legend">أقل من المستهدف</span><span class="target">خط المستهدف</span></div>
     </div>
 
     <div class="card">
@@ -688,7 +767,8 @@
         </select>
       </div>
 
-      <div class="settings-row"><label>نسخة احتياطية للبيانات</label><button type="button" class="quick-btn" id="exportBtn">تصدير</button>
+      <div class="settings-row"><label>نسخة احتياطية للبيانات</label><button type="button" class="quick-btn" id="exportBtn">تصدير JSON</button>
+      <button type="button" class="quick-btn" id="exportCsvBtn">تصدير CSV</button>
       <button class="btn secondary" id="importDataBtn" type="button">استيراد نسخة احتياطية</button>
       <input type="file" id="importDataFile" accept=".json,application/json" style="display:none;">
 </div>
@@ -770,24 +850,42 @@
   function sameDay(a,b){ return fmtDate(a)===fmtDate(b); }
   function todayStart(){ const t=new Date(); t.setHours(0,0,0,0); return t; }
 
+  function setMsg(el, text, type){
+    if(typeof el === 'string') el = document.getElementById(el);
+    if(!el) return;
+    el.textContent = text || '';
+    el.classList.remove('good','warn','info');
+    if(type) el.classList.add(type);
+  }
+
   function minutesToLabel(min){
     const h = Math.floor(min/60), m = min%60;
     return pad2(h)+':'+pad2(m);
   }
-  function durationToMinutes(value){
-    if(value===null || value===undefined) return 0;
+  function validateDuration(value){
+    if(value===null || value===undefined) return {mins:0, valid:true};
     let s=String(value).trim().replace(/،/g,'.').replace(/٫/g,'.').replace(/,/g,'.');
-    if(!s) return 0;
+    if(!s) return {mins:0, valid:true};
     // 2:30 = ساعتان و30 دقيقة
     if(/^\d+(?:\.\d+)?\s*:\s*\d{1,2}$/.test(s)){
       const p=s.split(':');
       const h=parseFloat(p[0])||0, m=parseInt(p[1],10)||0;
-      return Math.max(0, Math.round(h*60+m));
+      if(m>59) return {mins:0, valid:false, message:'الدقائق يجب أن تكون بين 0 و59 — مثال صحيح: 2:30'};
+      const mins=Math.round(h*60+m);
+      if(mins>1440) return {mins:0, valid:false, message:'المدة كبيرة جدًا لفترة واحدة — تحقق من القيمة'};
+      return {mins, valid:true};
     }
     // 2.5 = ساعتان ونصف، 2 = ساعتان
-    const h=parseFloat(s);
-    if(Number.isFinite(h)) return Math.max(0, Math.round(h*60));
-    return 0;
+    if(/^\d+(?:\.\d+)?$/.test(s)){
+      const h=parseFloat(s);
+      const mins=Math.round(h*60);
+      if(mins>1440) return {mins:0, valid:false, message:'المدة كبيرة جدًا لفترة واحدة — تحقق من القيمة'};
+      return {mins, valid:true};
+    }
+    return {mins:0, valid:false, message:'قيمة غير صحيحة. استخدم مثل 2 أو 2:30'};
+  }
+  function durationToMinutes(value){
+    return validateDuration(value).mins;
   }
 
   function minutesToInput(min){
@@ -831,6 +929,11 @@
     const start = addDays(d, -diff);
     const end = addDays(start, 6);
     return {start, end};
+  }
+
+  function previousPeriodRange(start, end){
+    const spanDays = Math.round((end - start) / 86400000) + 1;
+    return { start: addDays(start, -spanDays), end: addDays(end, -spanDays) };
   }
 
   // ---------- storage ----------
@@ -893,13 +996,16 @@
 
   async function getEntry(dateObj){
     const bucket = await getMonthBucket(monthKeyOf(dateObj));
-    return bucket[dayKeyOf(dateObj)] || null;
+    const e = bucket[dayKeyOf(dateObj)];
+    return (e && !e._deleted) ? e : null;
   }
 
   async function deleteEntry(dateObj){
     const mk=monthKeyOf(dateObj), dk=dayKeyOf(dateObj);
     const bucket=await getMonthBucket(mk);
-    delete bucket[dk];
+    // نحتفظ بشاهد حذف (tombstone) بدل إزالة اليوم نهائيًا، حتى تنتقل عملية الحذف بأمان
+    // عبر مزامنة Google Drive ولا تُستعاد بيانات محذوفة عن طريق الخطأ من جهاز آخر.
+    bucket[dk] = { _deleted:true, _updatedAt: Date.now() };
     monthCache[mk]=bucket;
     settings.localUpdatedAt = Date.now();
     await storageAdapter.set('entries:'+mk, JSON.stringify(bucket));
@@ -938,8 +1044,11 @@
       row.className = 'period-row';
       const min = vals[i] || 0;
       row.innerHTML = `<span class="plabel">فترة ${i+1}</span>
-        <input type="text" inputmode="decimal" class="period-input duration-input" data-idx="${i}"
-          placeholder="مثال 2:30" value="${min?minutesToInput(min):''}" aria-label="مدة الفترة ${i+1}">
+        <div class="period-input-wrap">
+          <input type="text" inputmode="decimal" class="period-input duration-input" data-idx="${i}"
+            placeholder="مثال 2:30" value="${min?minutesToInput(min):''}" aria-label="مدة الفترة ${i+1}">
+          <div class="period-error" aria-live="polite"></div>
+        </div>
         <button type="button" class="remove-period" title="حذف الفترة" aria-label="حذف الفترة">×</button>`;
       row.querySelector('.remove-period').addEventListener('click', ()=>{
         const periods = collectPeriods();
@@ -950,10 +1059,27 @@
       wrap.appendChild(row);
     }
     document.getElementById('addPeriodBtn').style.display = periodCountShown >= settings.periodsCount ? 'none' : 'block';
-    wrap.querySelectorAll('.period-input').forEach(inp=> inp.addEventListener('input', ()=>{
-      inp.value=inp.value.replace(/[^0-9:.,]/g,'');
-      updateTotalDisplay();
-    }));
+    wrap.querySelectorAll('.period-input').forEach(inp=>{
+      inp.addEventListener('input', ()=>{
+        inp.value=inp.value.replace(/[^0-9:.,]/g,'');
+        validatePeriodField(inp);
+        updateTotalDisplay();
+      });
+      inp.addEventListener('blur', ()=> validatePeriodField(inp));
+    });
+  }
+
+  function validatePeriodField(inp){
+    const res = validateDuration(inp.value);
+    const errEl = inp.parentElement.querySelector('.period-error');
+    if(!res.valid){
+      inp.classList.add('invalid');
+      if(errEl) errEl.textContent = res.message;
+    }else{
+      inp.classList.remove('invalid');
+      if(errEl) errEl.textContent = '';
+    }
+    return res.valid;
   }
 
   function collectPeriods(){
@@ -979,16 +1105,19 @@
     document.getElementById('cycleStamp').textContent = stamp.label;
 
     const entry = await getEntry(d);
-    document.getElementById('statusSelect').value = entry ? entry.status : 'عمل';
+    const statusSel = document.getElementById('statusSelect');
+    statusSel.value = entry ? entry.status : 'عمل';
+    statusSel.dataset.status = statusSel.value;
     document.getElementById('notesInput').value = entry ? (entry.notes||'') : '';
-    document.getElementById('statusSelect').onchange = ()=>{
-      if(document.getElementById('statusSelect').value!=='عمل'){
+    statusSel.onchange = ()=>{
+      statusSel.dataset.status = statusSel.value;
+      if(statusSel.value!=='عمل'){
         updateTotalDisplay();
       }
     };
     renderPeriods(entry ? entry.periods : null);
     updateTotalDisplay();
-    document.getElementById('saveMsg').textContent = '';
+    setMsg('saveMsg', '');
   }
 
   document.getElementById('prevDay').addEventListener('click', ()=>{ currentDate = addDays(currentDate,-1); renderToday(); });
@@ -1013,6 +1142,11 @@
   });
 
   document.getElementById('saveBtn').addEventListener('click', async ()=>{
+    const allValid = Array.from(document.querySelectorAll('.period-input')).map(validatePeriodField).every(Boolean);
+    if(!allValid){
+      setMsg('saveMsg', 'تحقّق من قيم الفترات المحدّدة باللون الأحمر قبل الحفظ.', 'warn');
+      return;
+    }
     const entry = {
       status: document.getElementById('statusSelect').value,
       periods: collectPeriods(),
@@ -1020,30 +1154,30 @@
     };
     try{
       await saveEntry(currentDate, entry);
-      document.getElementById('saveMsg').textContent = 'تم الحفظ ✓ — الإجمالي '+minutesToLabel(collectPeriods().reduce((a,b)=>a+b,0));
+      setMsg('saveMsg', 'تم الحفظ ✓ — الإجمالي '+minutesToLabel(collectPeriods().reduce((a,b)=>a+b,0)), 'good');
       if(settings.cloudAutoSync && driveAccessToken) driveSync(false);
       refreshSummaryIfActive();
       refreshLogIfActive();
     }catch(e){
       console.error('Save error:', e);
-      document.getElementById('saveMsg').textContent = 'تعذّر الحفظ: تأكد من فتح الملف في متصفح يدعم التخزين المحلي';
+      setMsg('saveMsg', 'تعذّر الحفظ: تأكد من فتح الملف في متصفح يدعم التخزين المحلي', 'warn');
     }
   });
 
 
   document.getElementById('deleteDayBtn').addEventListener('click', async ()=>{
     const entry=await getEntry(currentDate);
-    if(!entry){ document.getElementById('saveMsg').textContent='لا يوجد تسجيل لهذا اليوم'; return; }
+    if(!entry){ setMsg('saveMsg', 'لا يوجد تسجيل لهذا اليوم', 'info'); return; }
     if(!confirm('هل تريد حذف تسجيل هذا اليوم؟')) return;
     try{
       await deleteEntry(currentDate);
-      document.getElementById('saveMsg').textContent='تم حذف التسجيل ✓';
+      setMsg('saveMsg', 'تم حذف التسجيل ✓', 'good');
       if(settings.cloudAutoSync && driveAccessToken) driveSync(false);
       renderToday();
       refreshSummaryIfActive();
       refreshLogIfActive();
     }catch(e){
-      document.getElementById('saveMsg').textContent='تعذّر الحذف';
+      setMsg('saveMsg', 'تعذّر الحذف', 'warn');
     }
   });
 
@@ -1158,21 +1292,32 @@
   // ---------- Import backup ----------
   async function importBackupFile(file){
     const text=await file.text();
-    const data=JSON.parse(text);
+    let data;
+    try{
+      data=JSON.parse(text);
+    }catch(e){
+      throw new Error('تعذر قراءة الملف: تأكد أنه ملف نسخة احتياطية صالح بصيغة JSON.');
+    }
     if(!data || typeof data!=='object') throw new Error('النسخة الاحتياطية غير صالحة.');
-    if(data.settings) settings={...DEFAULT_SETTINGS,...data.settings};
     const months=data.months||data.entries||{};
     if(!months || typeof months!=='object') throw new Error('لا توجد بيانات إدخالات في النسخة الاحتياطية.');
+    // ندمج بيانات النسخة الاحتياطية مع البيانات الحالية على مستوى اليوم (بنفس منطق مزامنة Drive)
+    // بدل استبدال الشهر بالكامل، حتى لا تُفقد تسجيلات حديثة غير موجودة في نسخة قديمة.
     for(const mk of Object.keys(months)){
-      await storageAdapter.set('entries:'+mk,JSON.stringify(months[mk]||{}));
-      monthCache[mk]=months[mk]||{};
+      const existing=await getMonthBucket(mk);
+      const mergedBucket=mergeMonthBuckets(existing, months[mk]||{});
+      monthCache[mk]=mergedBucket;
+      await storageAdapter.set('entries:'+mk,JSON.stringify(mergedBucket));
+    }
+    if(data.settings && Number(data.updatedAt||0) >= Number(settings.localUpdatedAt||0)){
+      settings={...DEFAULT_SETTINGS,...data.settings, cloudFileId:settings.cloudFileId, cloudLastSync:settings.cloudLastSync};
     }
     settings.localUpdatedAt=Date.now();
     await saveSettingsToStorage();
     renderToday(); refreshSummaryIfActive(); refreshLogIfActive();
     if(document.getElementById('screen-dashboard').classList.contains('active')) renderDashboard();
     renderSettingsForm();
-    document.getElementById('saveSettingsMsg').textContent='تم استيراد النسخة الاحتياطية ✓';
+    setMsg('saveSettingsMsg', 'تم استيراد ودمج النسخة الاحتياطية ✓', 'good');
   }
 
   function initImportButton(){
@@ -1185,6 +1330,7 @@
       const file=input.files && input.files[0];
       input.value='';
       if(!file) return;
+      if(!confirm('سيتم دمج بيانات النسخة الاحتياطية مع بيانات هذا الجهاز الحالية (تُفضَّل السجلات الأحدث عند التعارض، ولا يُحذف شيء تلقائيًا). هل تريد المتابعة؟')) return;
       try{
         await importBackupFile(file);
       }catch(err){
@@ -1250,9 +1396,20 @@
       catch(e){ driveTokenResolve=null; driveTokenReject=null; reject(e); }
     });
   }
-  async function driveApi(url, options={}){
+  async function driveApi(url, options={}, _allowRetry=true){
     const token=await driveGetToken(false);
-    const res=await fetch(url,{...options,headers:{...(options.headers||{}),Authorization:'Bearer '+token}});
+    let res;
+    try{
+      res=await fetch(url,{...options,headers:{...(options.headers||{}),Authorization:'Bearer '+token}});
+    }catch(networkErr){
+      // خطأ شبكة عابر (انقطاع اتصال مؤقت) — نحاول مرة واحدة إضافية قبل الاستسلام،
+      // لحماية المزامنة من الفشل بسبب اتصال إنترنت غير مستقر لحظيًا.
+      if(_allowRetry){
+        await new Promise(r=>setTimeout(r,900));
+        return driveApi(url, options, false);
+      }
+      throw new Error('تعذر الوصول إلى Google Drive. تحقق من اتصال الإنترنت وحاول مجددًا.');
+    }
     if(res.status===401){
       driveAccessToken='';
       const token2=await driveGetToken(true);
@@ -1323,6 +1480,44 @@
     const r=await driveApi(base,{method:fileId?'PATCH':'POST',headers:{'Content-Type':'multipart/related; boundary='+boundary},body});
     return await r.json();
   }
+  function mergeMonthBuckets(localBucket, cloudBucket){
+    // دمج على مستوى اليوم: لكل تاريخ نحتفظ بالنسخة الأحدث تعديلًا (بما في ذلك شواهد الحذف)،
+    // بدل استبدال الشهر بالكامل. هذا يمنع فقدان تسجيلات حديثة على أي من الجهازين.
+    const merged={};
+    const keys=new Set([...Object.keys(localBucket||{}), ...Object.keys(cloudBucket||{})]);
+    keys.forEach(dk=>{
+      const l=(localBucket||{})[dk], c=(cloudBucket||{})[dk];
+      if(l && c){
+        merged[dk] = Number(l._updatedAt||0) >= Number(c._updatedAt||0) ? l : c;
+      } else {
+        merged[dk] = l || c;
+      }
+    });
+    return merged;
+  }
+  async function mergeDrivePayloads(localPayload, cloudPayload){
+    const monthKeys=new Set([
+      ...Object.keys((localPayload&&localPayload.months)||{}),
+      ...Object.keys((cloudPayload&&cloudPayload.months)||{})
+    ]);
+    const months={};
+    monthKeys.forEach(mk=>{
+      months[mk]=mergeMonthBuckets(
+        localPayload&&localPayload.months&&localPayload.months[mk],
+        cloudPayload&&cloudPayload.months&&cloudPayload.months[mk]
+      );
+    });
+    const localTime=Number((localPayload&&localPayload.updatedAt)||0);
+    const cloudTime=Number((cloudPayload&&cloudPayload.updatedAt)||0);
+    const baseSettings=(localTime>=cloudTime ? (localPayload&&localPayload.settings) : (cloudPayload&&cloudPayload.settings))||{};
+    return {
+      version:3,
+      exportedAt:new Date().toISOString(),
+      updatedAt:Math.max(localTime,cloudTime,Date.now()),
+      settings:{...baseSettings},
+      months
+    };
+  }
   async function driveApplyPayload(payload){
     if(!payload || typeof payload!=='object' || !payload.months) throw new Error('ملف Drive لا يحتوي على بيانات سجل صالحة.');
     settings={...DEFAULT_SETTINGS,...(payload.settings||{})};
@@ -1372,25 +1567,16 @@
       }else{
         settings.cloudFileId=file.id;
         const cloud=await driveDownload(file.id);
-        const cloudTime=Number(cloud?.updatedAt||new Date(file.modifiedTime||0).getTime()||0);
-        const localTime=Number(local.updatedAt||0);
-        if(cloudTime>localTime && !interactive){
-          await driveApplyPayload(cloud);
-          driveSetStatus('تم جلب أحدث بيانات من Drive','good');
-        }else if(cloudTime>localTime && interactive){
-          const useCloud=confirm('توجد نسخة أحدث في Google Drive. هل تريد استعادتها واستبدال البيانات المحلية بها؟\n\nاختر «موافق» للاستعادة أو «إلغاء» لرفع بيانات هذا الجهاز.');
-          if(useCloud) await driveApplyPayload(cloud); else { local.updatedAt=Date.now(); local.exportedAt=new Date().toISOString(); await driveUpload(local,file.id); settings.localUpdatedAt=local.updatedAt; }
-          driveSetStatus(useCloud?'تمت الاستعادة من Drive':'تم رفع بيانات هذا الجهاز','good');
-        }else{
-          local.updatedAt=Math.max(Date.now(),localTime+1); local.exportedAt=new Date().toISOString();
-          await driveUpload(local,file.id);
-          settings.localUpdatedAt=local.updatedAt;
-          driveSetStatus('تم رفع أحدث بيانات إلى Drive','good');
-        }
+        const merged=await mergeDrivePayloads(local, cloud||{});
+        await driveApplyPayload(merged);
+        merged.exportedAt=new Date().toISOString();
+        await driveUpload(merged, file.id);
+        settings.localUpdatedAt=merged.updatedAt;
         settings.cloudFileId=file.id;
         settings.cloudLastSync=new Date().toISOString();
         await saveSettingsToStorage();
         document.getElementById('driveLastSync').textContent=new Date().toLocaleString('ar-EG');
+        driveSetStatus('تمت المزامنة — تم دمج بيانات هذا الجهاز و Drive بدون فقدان أي تسجيل','good');
       }
       renderSettingsForm();
     }catch(e){
@@ -1559,7 +1745,13 @@
       const x=pad.left+i*step+step/2;
       const bh=ch*(item.mins/scaleMax);
       const th=ch*(item.target/scaleMax);
-      ctx.fillStyle='#1B2A41';
+      let barColor='#1B2A41';
+      if(item.isFuture && !item.entry){
+        barColor='#C9CFC9';
+      } else if(item.entry && item.target>0){
+        barColor = item.mins>=item.target ? '#4C7A5D' : '#B24C33';
+      }
+      ctx.fillStyle=barColor;
       ctx.fillRect(x-barW/2,pad.top+ch-bh,barW,bh);
       if(item.target>0){
         ctx.fillStyle='#B8873B';
@@ -1621,6 +1813,41 @@
     document.getElementById('dashLeaveDays').textContent='إجازة: '+leave;
     document.getElementById('dashAbsentDays').textContent='غياب: '+absent;
     document.getElementById('dashMissingDays').textContent='ناقص: '+missing;
+
+    const periodsTotal = days.reduce((a,x)=> a + (x.entry && x.entry.periods ? x.entry.periods.filter(m=>m>0).length : 0), 0);
+    document.getElementById('dashPeriodsCount').textContent='الفترات: '+periodsTotal;
+
+    const loggedDaysArr = days.filter(x=>x.entry && x.mins>0);
+    const bestEl=document.getElementById('dashBestDay'), bestLbl=document.getElementById('dashBestDayLabel');
+    const worstEl=document.getElementById('dashWorstDay'), worstLbl=document.getElementById('dashWorstDayLabel');
+    if(loggedDaysArr.length){
+      const best = loggedDaysArr.reduce((a,b)=> b.mins>a.mins ? b : a);
+      const worst = loggedDaysArr.reduce((a,b)=> b.mins<a.mins ? b : a);
+      bestEl.textContent = minutesToLabel(best.mins);
+      bestLbl.textContent = 'أفضل يوم — '+best.date.toLocaleDateString('ar-EG',{day:'numeric',month:'short'});
+      worstEl.textContent = minutesToLabel(worst.mins);
+      worstLbl.textContent = 'أقل يوم — '+worst.date.toLocaleDateString('ar-EG',{day:'numeric',month:'short'});
+    } else {
+      bestEl.textContent='—'; bestLbl.textContent='أفضل يوم';
+      worstEl.textContent='—'; worstLbl.textContent='أقل يوم';
+    }
+
+    try{
+      const prevRange = previousPeriodRange(range.start, range.end);
+      const prevDays = await collectDashboardDays(prevRange.start, prevRange.end);
+      const prevTotal = prevDays.reduce((a,x)=>a+x.mins,0);
+      const compareEl = document.getElementById('dashCompare');
+      if(prevTotal>0){
+        const diff = total - prevTotal;
+        const pct = Math.round((diff/prevTotal)*100);
+        const sign = diff>0?'+':(diff<0?'−':'');
+        compareEl.textContent = 'مقارنة بالفترة السابقة: '+sign+minutesToLabel(Math.abs(diff))+' ('+sign+Math.abs(pct)+'%)';
+      } else if(total>0){
+        compareEl.textContent = 'لا توجد بيانات في الفترة السابقة للمقارنة';
+      } else {
+        compareEl.textContent = '—';
+      }
+    }catch(e){ console.warn('Comparison skipped:', e); }
 
     drawDashboardChart(days);
 
@@ -1716,10 +1943,10 @@
     settings.weekend2 = parseInt(document.getElementById('s_weekend2').value);
     try{
       await saveSettingsToStorage();
-      document.getElementById('saveSettingsMsg').textContent = 'تم حفظ الإعدادات ✓';
+      setMsg('saveSettingsMsg', 'تم حفظ الإعدادات ✓', 'good');
       renderToday();
     }catch(e){
-      document.getElementById('saveSettingsMsg').textContent = 'تعذّر الحفظ';
+      setMsg('saveSettingsMsg', 'تعذّر الحفظ', 'warn');
     }
   });
 
@@ -1740,7 +1967,49 @@
       a.click();
       setTimeout(()=>URL.revokeObjectURL(a.href),1000);
     }catch(e){
-      document.getElementById('saveSettingsMsg').textContent='تعذّر التصدير';
+      setMsg('saveSettingsMsg', 'تعذّر التصدير', 'warn');
+    }
+  });
+
+  function csvEscape(value){
+    const s=String(value==null?'':value);
+    return /[",\n]/.test(s) ? '"'+s.replace(/"/g,'""')+'"' : s;
+  }
+
+  document.getElementById('exportCsvBtn').addEventListener('click', async ()=>{
+    try{
+      const rows=[['التاريخ','اليوم','الحالة','الفترات','الإجمالي','ملاحظات']];
+      const d=new Date();
+      for(let i=-12;i<=12;i++){
+        const x=new Date(d.getFullYear(), d.getMonth()+i, 1);
+        const mk=monthKeyOf(x);
+        const bucket=await getMonthBucket(mk);
+        Object.keys(bucket).sort().forEach(dk=>{
+          const entry=bucket[dk];
+          if(!entry || entry._deleted) return; // تجاهل شواهد الحذف
+          const dateObj=new Date(x.getFullYear(), x.getMonth(), Number(dk));
+          const mins=(entry.periods||[]).reduce((a,b)=>a+b,0);
+          rows.push([
+            fmtDate(dateObj),
+            DOW_AR[isoWeekday(dateObj)-1],
+            entry.status||'',
+            (entry.periods||[]).map(minutesToInput).filter(Boolean).join(' | '),
+            minutesToLabel(mins),
+            entry.notes||''
+          ]);
+        });
+      }
+      // BOM في البداية لضمان ظهور النص العربي بشكل صحيح عند فتح الملف في Excel.
+      const csv='\uFEFF'+rows.map(r=>r.map(csvEscape).join(',')).join('\r\n');
+      const blob=new Blob([csv],{type:'text/csv;charset=utf-8'});
+      const a=document.createElement('a');
+      a.href=URL.createObjectURL(blob);
+      a.download='سجل-ساعات-العمل-تقرير.csv';
+      a.click();
+      setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+    }catch(e){
+      console.error(e);
+      setMsg('saveSettingsMsg', 'تعذّر تصدير CSV', 'warn');
     }
   });
 
