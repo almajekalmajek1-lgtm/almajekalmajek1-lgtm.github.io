@@ -327,6 +327,11 @@
   .week-row .wk-nums{ font-family:'IBM Plex Mono',monospace; font-weight:600; font-size:13px; white-space:nowrap; }
   .week-row .wk-nums.good{ color:var(--good); }
   .week-row .wk-nums.short{ color:var(--warn); }
+  .week-row .wk-extra-deficit{
+    font-size:11px; font-weight:600; margin-bottom:6px; min-height:14px;
+  }
+  .week-row .wk-extra-deficit.good{ color:var(--good); }
+  .week-row .wk-extra-deficit.warn{ color:var(--warn); }
   .bar-track.sm{ height:5px; margin:0; }
   .week-chart{ width:100%; height:92px; display:block; margin-top:2px; }
 
@@ -1332,6 +1337,7 @@
           <span class="wk-label mono">${label}${i===0?' <span class="badge work">الحالي</span>':''}</span>
           <span class="wk-nums" id="wkNums-${i}">…</span>
         </div>
+        <div class="wk-extra-deficit mono" id="wkDiff-${i}"></div>
         <canvas class="week-chart" id="weekChart-${i}"></canvas>
       </div>`;
     }).join('');
@@ -1346,6 +1352,21 @@
         numsEl.textContent = minutesToLabel(total)+' / '+minutesToLabel(targetMin);
         numsEl.classList.toggle('good', met);
         numsEl.classList.toggle('short', targetMin>0 && !met);
+      }
+      // نعرض إمّا "إضافي" أو "عجز" فقط حسب الحالة — أبدًا الاثنين معًا.
+      const diff = total - targetMin;
+      const diffEl=document.getElementById('wkDiff-'+i);
+      if(diffEl){
+        diffEl.classList.remove('good','warn');
+        if(targetMin>0 && diff>0){
+          diffEl.textContent = 'إضافي: '+minutesToLabel(diff);
+          diffEl.classList.add('good');
+        } else if(targetMin>0 && diff<0){
+          diffEl.textContent = 'عجز: '+minutesToLabel(Math.abs(diff));
+          diffEl.classList.add('warn');
+        } else {
+          diffEl.textContent = '';
+        }
       }
       drawMiniWeekChart(document.getElementById('weekChart-'+i), days);
     }
