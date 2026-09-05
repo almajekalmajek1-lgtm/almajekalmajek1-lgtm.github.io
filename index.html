@@ -316,6 +316,20 @@
   .alert-row:first-of-type{ border-top:none; }
   .alert-row .a-date{ color:var(--warn); }
 
+  .week-row{
+    padding:9px 0; border-top:1px dashed var(--line);
+  }
+  .week-row:first-of-type{ border-top:none; }
+  .week-row.current{ background:var(--brass-soft); margin:0 -13px; padding:9px 13px; border-radius:9px; }
+  .week-row .wk-top{ display:flex; align-items:baseline; justify-content:space-between; gap:8px; font-size:12px; margin-bottom:6px; }
+  .week-row .wk-label{ color:var(--ink-soft); }
+  .week-row .wk-label .mono{ font-family:'IBM Plex Mono',monospace; }
+  .week-row .wk-nums{ font-family:'IBM Plex Mono',monospace; font-weight:600; font-size:13px; white-space:nowrap; }
+  .week-row .wk-nums.good{ color:var(--good); }
+  .week-row .wk-nums.short{ color:var(--warn); }
+  .bar-track.sm{ height:5px; margin:0; }
+  .week-chart{ width:100%; height:92px; display:block; margin-top:2px; }
+
   /* ---------- Settings screen ---------- */
   .settings-row{
     display:flex; align-items:center; justify-content:space-between;
@@ -735,6 +749,11 @@
         <span class="of">/ <span id="weekTarget">00:00</span></span>
       </div>
       <div class="bar-track"><div class="bar-fill" id="weekBar" style="width:0%"></div></div>
+    </div>
+
+    <div class="card">
+      <h2>لوحة الأسابيع <span style="font-weight:400;font-size:11px;color:var(--ink-soft);">— ٨ أسابيع، وتوزيع الساعات يوميًا لكل أسبوع</span></h2>
+      <div id="weeksBoard"><div class="loading">جارٍ التحميل…</div></div>
     </div>
 
     <div class="card">
@@ -1285,6 +1304,97 @@
         alertsList.appendChild(row);
       });
     }
+
+    await renderWeeksBoard();
+  }
+
+  const DOW_SHORT = ['إثنين','ثلاثاء','أربعاء','خميس','جمعة','سبت','أحد']; // نفس ترتيب DOW_AR (الاثنين=0)
+
+  async function renderWeeksBoard(){
+    const boardEl = document.getElementById('weeksBoard');
+    if(!boardEl) return;
+    const weeklyTarget = Number(settings.weeklyTarget||20);
+    const targetMin = Math.round(weeklyTarget*60);
+    const todayWk = weekRangeFor(new Date(), settings.weekStart);
+
+    // نعرض ٨ أسابيع تقويمية كاملة على الأقل، تنتهي بالأسبوع الحالي، بصرف النظر عن حدود الدورة الشهرية —
+    // لأن العمل هنا محسوب على أساس صافي الساعات الأسبوعي وليس الشهري.
+    const WEEKS_TO_SHOW = 8;
+    const weeks = [];
+    for(let i=0;i<WEEKS_TO_SHOW;i++){
+      weeks.push(weekRangeFor(addDays(todayWk.start, -7*i), settings.weekStart));
+    }
+
+    boardEl.innerHTML = weeks.map((wk,i)=>{
+      const label = wk.start.toLocaleDateString('ar-EG',{day:'numeric',month:'short'}) + ' — ' + wk.end.toLocaleDateString('ar-EG',{day:'numeric',month:'short'});
+      return `<div class="week-row${i===0?' current':''}">
+        <div class="wk-top">
+          <span class="wk-label mono">${label}${i===0?' <span class="badge work">الحالي</span>':''}</span>
+          <span class="wk-nums" id="wkNums-${i}">…</span>
+        </div>
+        <canvas class="week-chart" id="weekChart-${i}"></canvas>
+      </div>`;
+    }).join('');
+
+    for(let i=0;i<weeks.length;i++){
+      const wk=weeks[i];
+      const days=await collectDashboardDays(wk.start, wk.end);
+      const total=days.reduce((a,x)=>a+x.mins,0);
+      const met=targetMin>0 && total>=targetMin;
+      const numsEl=document.getElementById('wkNums-'+i);
+      if(numsEl){
+        numsEl.textContent = minutesToLabel(total)+' / '+minutesToLabel(targetMin);
+        numsEl.classList.toggle('good', met);
+        numsEl.classList.toggle('short', targetMin>0 && !met);
+      }
+      drawMiniWeekChart(document.getElementById('weekChart-'+i), days);
+    }
+  }
+
+  function drawMiniWeekChart(canvas, days){
+    if(!canvas) return;
+    const rect=canvas.getBoundingClientRect();
+    const ratio=window.devicePixelRatio||1;
+    const w=Math.max(240,Math.floor(rect.width));
+    const h=Math.max(70,Math.floor(rect.height));
+    canvas.width=w*ratio; canvas.height=h*ratio;
+    const ctx=canvas.getContext('2d');
+    ctx.setTransform(ratio,0,0,ratio,0,0);
+    ctx.clearRect(0,0,w,h);
+    if(!days.length) return;
+
+    const pad={top:16,right:6,bottom:16,left:6};
+    const cw=w-pad.left-pad.right, ch=h-pad.top-pad.bottom;
+    const maxVal=Math.max((settings.dailyTarget||0)*60, ...days.map(x=>x.mins), 60);
+    const scaleMax=Math.ceil(maxVal/60)*60;
+    const n=days.length;
+    const step=cw/n;
+    const barW=Math.max(10,Math.min(28,step*.5));
+
+    ctx.textAlign='center';
+    days.forEach((item,i)=>{
+      const x=pad.left+i*step+step/2;
+      const bh=Math.max(item.mins>0?2:0, ch*(item.mins/scaleMax));
+      let barColor='#1B2A41';
+      if(item.isFuture && !item.entry){
+        barColor='#C9CFC9';
+      } else if(item.entry && item.target>0){
+        barColor = item.mins>=item.target ? '#4C7A5D' : '#B24C33';
+      } else if(item.entry && item.mins>0){
+        barColor='#B8873B';
+      }
+      ctx.fillStyle=barColor;
+      ctx.fillRect(x-barW/2, pad.top+ch-bh, barW, bh);
+      if(item.mins>0){
+        ctx.font='9px Arial';
+        ctx.fillStyle='#1B2A41';
+        const ly=Math.max(10, pad.top+ch-bh-4);
+        ctx.fillText(minutesToLabel(item.mins), x, ly);
+      }
+      ctx.font='9px Arial';
+      ctx.fillStyle='#5B6B7F';
+      ctx.fillText(DOW_SHORT[i%7], x, pad.top+ch+13);
+    });
   }
 
 
@@ -1450,17 +1560,19 @@
   async function driveFindFile(){
     if(settings.cloudFileId){
       try{
-        const r=await driveApi('https://www.googleapis.com/drive/v3/files/'+encodeURIComponent(settings.cloudFileId)+'?fields=id,name,modifiedTime,trashed');
+        const r=await driveApi('https://www.googleapis.com/drive/v3/files/'+encodeURIComponent(settings.cloudFileId)+'?fields=id,name,modifiedTime,trashed', {cache:'no-store'});
         const f=await r.json(); if(f && !f.trashed) return f;
       }catch(_){}
     }
     const q="name='"+DRIVE_FILE_NAME.replace(/'/g,"\\'")+"' and 'appDataFolder' in parents and trashed=false";
-    const r=await driveApi('https://www.googleapis.com/drive/v3/files?q='+encodeURIComponent(q)+'&pageSize=10&fields=files(id,name,modifiedTime,trashed)');
+    const r=await driveApi('https://www.googleapis.com/drive/v3/files?q='+encodeURIComponent(q)+'&pageSize=10&fields=files(id,name,modifiedTime,trashed)', {cache:'no-store'});
     const data=await r.json();
     return data.files?.[0]||null;
   }
   async function driveDownload(fileId){
-    const r=await driveApi('https://www.googleapis.com/drive/v3/files/'+encodeURIComponent(fileId)+'?alt=media');
+    // لا نعتمد على أي نسخة مخزّنة (Cache) من المتصفح لهذا الملف — يجب دائمًا قراءة أحدث نسخة فعلية من Drive،
+    // خصوصًا لو تمت المزامنة أكثر من مرة لنفس الملف في نفس الجلسة.
+    const r=await driveApi('https://www.googleapis.com/drive/v3/files/'+encodeURIComponent(fileId)+'?alt=media&_ts='+Date.now(), {cache:'no-store'});
     return await r.json();
   }
   async function driveUpload(payload,fileId){
