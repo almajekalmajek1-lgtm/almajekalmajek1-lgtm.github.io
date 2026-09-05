@@ -1586,7 +1586,7 @@
       }catch(_){}
     }
     const q="name='"+DRIVE_FILE_NAME.replace(/'/g,"\\'")+"' and 'appDataFolder' in parents and trashed=false";
-    const r=await driveApi('https://www.googleapis.com/drive/v3/files?q='+encodeURIComponent(q)+'&pageSize=10&fields=files(id,name,modifiedTime,trashed)', {cache:'no-store'});
+    const r=await driveApi('https://www.googleapis.com/drive/v3/files?q='+encodeURIComponent(q)+'&spaces=appDataFolder&pageSize=10&fields=files(id,name,modifiedTime,trashed)', {cache:'no-store'});
     const data=await r.json();
     return data.files?.[0]||null;
   }
@@ -1671,7 +1671,7 @@
       driveSetStatus('جاري الاتصال…');
       await driveGetToken(true);
       driveSetButtons(true);
-      connect.textContent='✓ حساب Google مرتبط';
+      document.getElementById('driveConnectBtn').textContent='✓ حساب Google مرتبط';
       driveSetStatus('متصل بحساب Google','good');
       document.getElementById('driveHint').textContent='تم الربط. استخدم «مزامنة الآن» لرفع/جلب البيانات.';
       await driveSync(true);
