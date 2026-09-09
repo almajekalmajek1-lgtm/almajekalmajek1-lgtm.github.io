@@ -1313,7 +1313,7 @@
     await renderWeeksBoard();
   }
 
-  const DOW_SHORT = ['إثنين','ثلاثاء','أربعاء','خميس','جمعة','سبت','أحد']; // نفس ترتيب DOW_AR (الاثنين=0)
+  const DOW_SHORT_BY_ISO = {1:'إثنين',2:'ثلاثاء',3:'أربعاء',4:'خميس',5:'جمعة',6:'سبت',7:'أحد'}; // مفتاح = isoWeekday(date), وليس ترتيب الظهور
 
   async function renderWeeksBoard(){
     const boardEl = document.getElementById('weeksBoard');
@@ -1414,7 +1414,7 @@
       }
       ctx.font='9px Arial';
       ctx.fillStyle='#5B6B7F';
-      ctx.fillText(DOW_SHORT[i%7], x, pad.top+ch+13);
+      ctx.fillText(DOW_SHORT_BY_ISO[isoWeekday(item.date)], x, pad.top+ch+13);
     });
   }
 
